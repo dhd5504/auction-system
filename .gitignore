@@ -1,0 +1,66 @@
+###################################
+# GLOBAL
+###################################
+*.log
+*.tmp
+*.cache
+*.bak
+*.swp
+
+###################################
+# SQLITE DATABASE
+###################################
+*.db
+*.sqlite
+*-journal
+
+###################################
+# C++ BUILD OUTPUT
+###################################
+# be-client build folder
+be-client/build/
+be-client/CMakeFiles/
+be-client/CMakeCache.txt
+be-client/cmake_install.cmake
+
+# server build artifacts
+server/build/
+server/CMakeFiles/
+server/CMakeCache.txt
+server/cmake_install.cmake
+
+# general C++ build garbage
+*.o
+*.so
+*.a
+*.out
+*.exe
+
+###################################
+# REACT / NODEJS
+###################################
+fe-client/node_modules/
+fe-client/build/
+fe-client/.cache/
+fe-client/.parcel-cache/
+fe-client/dist/
+fe-client/.DS_Store
+
+###################################
+# IDE FILES
+###################################
+.vscode/
+.idea/
+*.iml
+
+###################################
+# OS JUNK
+###################################
+.DS_Store
+Thumbs.db
+
+###################################
+# BACKUP FILES
+###################################
+*.orig
+*.rej
