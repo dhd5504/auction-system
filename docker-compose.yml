@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  fe-client:
+    build: ./fe-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - be-client
+
+  be-client:
+    build: ./be-client
+    ports:
+      - "8080:8080"
+    depends_on:
+      - tcp-server
+
+  tcp-server:
+    build: ./server
+    ports:
+      - "9000:9000"
