@@ -5,15 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SQLite3 REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_library(PISTACHE_LIB NAMES pistache REQUIRED)
 
 add_executable(be_client
     main.cpp
     api/product_api.cpp
     api/room_api.cpp
+    api/auth_api.cpp
     db/sqlite.cpp
     tcp/tcp_client.cpp
     ws/ws_server.cpp
+    security/jwt.cpp
 )
 
 target_include_directories(be_client PRIVATE
@@ -23,10 +26,13 @@ target_include_directories(be_client PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tcp
     ${CMAKE_CURRENT_SOURCE_DIR}/ws
     ${CMAKE_CURRENT_SOURCE_DIR}/model
+    ${CMAKE_CURRENT_SOURCE_DIR}/security
 )
 
 target_link_libraries(be_client PRIVATE
     ${PISTACHE_LIB}
     SQLite::SQLite3
+    OpenSSL::Crypto
+    OpenSSL::SSL
     pthread
 )

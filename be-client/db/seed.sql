@@ -1,16 +1,15 @@
--- Sample products (string ids)
-INSERT OR IGNORE INTO products(id, name, start_price, buy_price, step, description) VALUES
-  ('p1', 'Vintage Clock', 120.0, 300.0, 10.0, '1930s mantel clock'),
-  ('p2', 'Gaming Laptop', 900.0, 1500.0, 50.0, 'RTX 4070, 16GB RAM'),
-  ('p3', 'Oil Painting', 500.0, 1200.0, 25.0, 'Landscape original');
+-- Users (passwords stored as plain text placeholders, replace with hashes in production)
+INSERT OR IGNORE INTO users(id, username, password, is_active, role) VALUES
+  (1, 'admin', 'admin', 1, 'admin'),
+  (2, 'alice', 'alice123', 1, 'user');
 
--- Sample rooms
-INSERT OR IGNORE INTO rooms(id, name, start_time) VALUES
-  ('r100', 'Morning Auction', '2025-05-01T09:00:00Z'),
-  ('r101', 'Evening Auction', '2025-05-01T19:00:00Z');
+-- Products owned by users
+INSERT OR IGNORE INTO products(id, name, description, start_price, status, owner_user_id, created_at, image_url, category) VALUES
+  (1, 'Vintage Clock', '1930s mantel clock', 120, 'available', 1, CURRENT_TIMESTAMP, NULL, 'antique'),
+  (2, 'Gaming Laptop', 'RTX 4070, 16GB RAM', 900, 'available', 1, CURRENT_TIMESTAMP, NULL, 'electronics'),
+  (3, 'Oil Painting', 'Landscape original', 500, 'available', 2, CURRENT_TIMESTAMP, NULL, 'art');
 
--- Link products to rooms
-INSERT OR IGNORE INTO room_products(room_id, product_id) VALUES
-  ('r100', 'p1'),
-  ('r100', 'p2'),
-  ('r101', 'p3');
+-- Rooms referencing a single product
+INSERT OR IGNORE INTO rooms(id, room_name, product_id, duration, status, host_user_id, created_at, started_at, ended_at, base_price) VALUES
+  (1, 'Morning Auction', 1, 3600, 'waiting', 1, CURRENT_TIMESTAMP, NULL, NULL, 100),
+  (2, 'Evening Auction', 3, 5400, 'waiting', 2, CURRENT_TIMESTAMP, NULL, NULL, 200);

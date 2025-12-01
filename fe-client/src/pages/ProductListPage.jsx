@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { getProducts } from '../api/product';
+import { useAuth } from '../AuthContext';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      setError('Please login to view products.');
+      setProducts([]);
+      return;
+    }
     const load = async () => {
       try {
         setLoading(true);
@@ -21,7 +29,7 @@ export default function ProductListPage() {
     };
 
     load();
-  }, []);
+  }, [user]);
 
   return (
     <div style={{ background: '#fff', padding: 20, borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>

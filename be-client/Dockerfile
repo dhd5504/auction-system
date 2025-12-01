@@ -7,6 +7,7 @@ RUN apt-get update \
         cmake \
         libsqlite3-dev \
         libpistache-dev \
+        libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

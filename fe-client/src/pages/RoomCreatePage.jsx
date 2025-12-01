@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoom } from '../api/room';
 import { getProducts } from '../api/product';
+import { useAuth } from '../AuthContext';
 
 const initialForm = {
   name: '',
@@ -18,6 +19,7 @@ export default function RoomCreatePage() {
   const [status, setStatus] = useState({ type: '', message: '' });
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -52,6 +54,10 @@ export default function RoomCreatePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      setStatus({ type: 'error', message: 'Login required to create room.' });
+      return;
+    }
     setSubmitting(true);
     setStatus({ type: '', message: '' });
 
@@ -75,6 +81,7 @@ export default function RoomCreatePage() {
   return (
     <div style={{ background: '#fff', padding: 20, borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
       <h2 style={{ marginTop: 0 }}>Create Room</h2>
+      {!user && <p style={{ color: '#ef4444' }}>Please login to create a room.</p>}
       <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
         <label style={{ display: 'grid', gap: 6 }}>
           <span>Room Name</span>
@@ -140,7 +147,7 @@ export default function RoomCreatePage() {
 
         <button
           type="submit"
-          disabled={submitting || loadingProducts}
+          disabled={submitting || loadingProducts || !user}
           style={{
             background: '#2563eb',
             color: '#fff',

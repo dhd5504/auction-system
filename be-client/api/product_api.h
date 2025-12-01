@@ -5,20 +5,25 @@
 #include <pistache/router.h>
 
 #include "db/sqlite.h"
-#include "tcp/tcp_client.h"
-#include "ws/ws_server.h"
+#include "security/jwt.h"
 
 class ProductApi {
 public:
-    ProductApi(Pistache::Rest::Router& router, SQLiteDb& db, TcpClient& tcpClient, WsServer& ws);
+    ProductApi(Pistache::Rest::Router& router, SQLiteDb& db, JwtService& jwt);
 
 private:
-    void handleCreate(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
-    void handleList(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    bool authorize(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter& response, int& userId, std::string& role);
+    void handleCreateOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleListOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleGetOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleUpdateOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleDeleteOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+
+    void handleListPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleGetPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleOptions(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void addCors(Pistache::Http::ResponseWriter& response);
 
     SQLiteDb& db;
-    TcpClient& tcpClient;
-    WsServer& ws;
+    JwtService& jwt;
 };

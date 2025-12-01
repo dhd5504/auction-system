@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@
 
 #include "model/product.h"
 #include "model/room.h"
+#include "model/user.h"
 
 class SQLiteDb {
 public:
@@ -18,14 +20,25 @@ public:
     void close();
     bool initSchema();
 
-    bool addProduct(const Product& product);
-    std::vector<Product> getProducts();
+    bool addProduct(const Product& product, int& newId);
+    std::vector<Product> getProducts(int ownerUserId);
+    std::vector<Product> getProductsPublic();
+    std::optional<Product> getProductById(int id);
+    std::optional<Product> getProductByIdForOwner(int id, int ownerUserId);
+    bool updateProduct(const Product& product);
+    bool deleteProduct(int id, int ownerUserId);
+    bool updateProductStatus(int id, const std::string& status, std::optional<int> ownerUserId = std::nullopt);
 
-    bool addRoom(const Room& room);
-    std::vector<Room> getRooms();
+    bool addRoom(const Room& room, int& newId);
+    std::vector<Room> getRooms(int hostUserId);
+    std::vector<Room> getRoomsPublic();
+    std::optional<Room> getRoomByIdForUser(int id, int hostUserId);
+    std::optional<Room> getRoomById(int id);
+    bool deleteRoom(int id, int hostUserId);
 
-    bool linkRoomProduct(const std::string& roomId, const std::string& productId);
-    std::vector<std::string> getRoomProducts(const std::string& roomId);
+    bool addUser(const User& user, int& newId);
+    std::optional<User> getUserByUsername(const std::string& username);
+    std::optional<User> getUserById(int id);
 
 private:
     bool execute(const std::string& sql);

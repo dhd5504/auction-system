@@ -6,9 +6,10 @@
 
 #include "api/product_api.h"
 #include "api/room_api.h"
+#include "api/auth_api.h"
 #include "db/sqlite.h"
-#include "tcp/tcp_client.h"
-#include "ws/ws_server.h"
+#include "security/jwt.h"
+#include <cstdlib>
 
 int main() {
     SQLiteDb database("data.db");
@@ -21,19 +22,22 @@ int main() {
         return 1;
     }
 
-    WsServer wsServer(8081);
-    wsServer.start();
-
-    TcpClient tcpClient("127.0.0.1", 9000);
+    const char* envSecret = std::getenv("JWT_SECRET");
+    const char* envExpiry = std::getenv("JWT_EXPIRES_IN");
+    int expirySeconds = envExpiry ? std::atoi(envExpiry) : 3600;
+    if (expirySeconds <= 0) expirySeconds = 3600;
+    JwtService jwt(envSecret ? envSecret : "", expirySeconds);
 
     Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(8080));
     Pistache::Http::Endpoint httpEndpoint(addr);
     Pistache::Rest::Router router;
 
-    ProductApi productApi(router, database, tcpClient, wsServer);
-    RoomApi roomApi(router, database, tcpClient, wsServer);
+    ProductApi productApi(router, database, jwt);
+    RoomApi roomApi(router, database, jwt);
+    AuthApi authApi(router, database, jwt);
     (void)productApi;
     (void)roomApi;
+    (void)authApi;
 
     auto opts = Pistache::Http::Endpoint::options()
                     .threads(2)
@@ -50,7 +54,6 @@ int main() {
     std::getline(std::cin, line);
 
     httpEndpoint.shutdown();
-    wsServer.stop();
     database.close();
     return 0;
 }

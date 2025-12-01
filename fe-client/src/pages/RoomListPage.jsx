@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getRooms, startRoom } from '../api/room';
+import { useAuth } from '../AuthContext';
 
 export default function RoomListPage() {
   const [rooms, setRooms] = useState([]);
@@ -7,8 +8,15 @@ export default function RoomListPage() {
   const [error, setError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [startingId, setStartingId] = useState(null);
+  const { user } = useAuth();
 
   const loadRooms = async () => {
+    if (!user) {
+      setRooms([]);
+      setError('Please login to view rooms.');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError('');
@@ -24,7 +32,7 @@ export default function RoomListPage() {
   useEffect(() => {
     loadRooms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const handleStart = async (id) => {
     setStartingId(id);
@@ -61,6 +69,7 @@ export default function RoomListPage() {
       {loading && <p>Loading rooms...</p>}
       {error && <p style={{ color: '#dc2626' }}>{error}</p>}
       {actionMessage && <p style={{ color: '#2563eb' }}>{actionMessage}</p>}
+      {!user && <p style={{ color: '#ef4444' }}>Login to start rooms.</p>}
       {!loading && !error && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -116,6 +125,7 @@ export default function RoomListPage() {
                   }
 
                   const canStart = status ? status !== 'started' : true;
+                  const canStartWithAuth = !!user && canStart;
 
                   return (
                     <tr key={id} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -127,14 +137,14 @@ export default function RoomListPage() {
                       <td style={{ padding: '10px 6px' }}>
                         <button
                           onClick={() => handleStart(id)}
-                          disabled={!canStart || startingId === id}
+                          disabled={!canStartWithAuth || startingId === id}
                           style={{
                             background: '#22c55e',
                             color: '#fff',
                             border: 'none',
                             padding: '8px 12px',
                             borderRadius: 8,
-                            cursor: !canStart ? 'not-allowed' : 'pointer',
+                            cursor: !canStartWithAuth ? 'not-allowed' : 'pointer',
                             fontWeight: 700,
                           }}
                         >

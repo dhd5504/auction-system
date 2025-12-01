@@ -1,19 +1,32 @@
-export async function register(username, password) {
-  const res = await fetch("http://localhost:8080/api/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
+const AUTH_BASE = 'http://localhost:8080/api';
 
-  return res.json();
+async function handleResponse(response) {
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+  const text = await response.text();
+  return text || null;
 }
 
 export async function login(username, password) {
-  const res = await fetch("http://localhost:8080/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
+  const response = await fetch(`${AUTH_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
   });
+  return handleResponse(response);
+}
 
-  return res.json();
+export async function register(username, password) {
+  const response = await fetch(`${AUTH_BASE}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  return handleResponse(response);
 }

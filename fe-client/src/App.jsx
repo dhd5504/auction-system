@@ -1,107 +1,90 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
-import ProductCreatePage from './pages/ProductCreatePage';
-import ProductListPage from './pages/ProductListPage';
-import RoomCreatePage from './pages/RoomCreatePage';
-import RoomListPage from './pages/RoomListPage';
-import EventLog from './components/EventLog';
-import { connectWebSocket } from './websocket';
+import { AuthProvider, useAuth } from './AuthContext';
 
-export default function App() {
-  const [events, setEvents] = useState([]);
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-  useEffect(() => {
-    const socket = connectWebSocket((event) => {
-      setEvents((prev) => {
-        const next = [
-          {
-            time: new Date().toLocaleTimeString(),
-            event,
-            raw: typeof event === 'string' ? event : null,
-          },
-          ...prev,
-        ];
-        return next.slice(0, 50);
-      });
-    });
+import MyProductList from './pages/MyProductList';
+import MyProductDetail from './pages/MyProductDetail';
+import ProductCreate from './pages/ProductCreate';
+import ProductEdit from './pages/ProductEdit';
+import ProductList from './pages/ProductList';
+import ProductDetail from './pages/ProductDetail';
 
-    return () => socket.close();
-  }, []);
+import MyRoomList from './pages/MyRoomList';
+import MyRoomDetail from './pages/MyRoomDetail';
+import RoomCreate from './pages/RoomCreate';
+import RoomList from './pages/RoomList';
+import RoomDetail from './pages/RoomDetail';
 
+function NavBar() {
+  const { user, logout } = useAuth();
+  return (
+    <header className="nav">
+      <div className="logo">Auction Lite</div>
+      <nav>
+        <NavLink to="/products">Products</NavLink>
+        <NavLink to="/rooms">Rooms</NavLink>
+        {user && (
+          <>
+            <NavLink to="/me/products">My Products</NavLink>
+            <NavLink to="/me/rooms">My Rooms</NavLink>
+          </>
+        )}
+      </nav>
+      <div className="auth">
+        {user ? (
+          <>
+            <span>{user.username}</span>
+            <button onClick={logout}>Logout</button>
+          </>
+        ) : (
+          <>
+            <NavLink to="/login">Login</NavLink>
+            <NavLink to="/register">Register</NavLink>
+          </>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function AppShell() {
   return (
     <BrowserRouter>
-      <div
-        style={{
-          fontFamily: '"Space Grotesk", "Helvetica Neue", sans-serif',
-          background: 'linear-gradient(180deg, #f8fafc 0%, #e0f2fe 40%, #f8fafc 100%)',
-          minHeight: '100vh',
-        }}
-      >
-        <header
-          style={{
-            background: 'linear-gradient(135deg, #0f172a, #0d9488)',
-            color: '#fff',
-            padding: '16px 24px',
-          }}
-        >
-          <h1 style={{ margin: 0 }}>Auction Dashboard</h1>
-          <nav style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <NavLink
-              to="/products"
-              style={({ isActive }) => ({
-                color: isActive ? '#5eead4' : '#e5e7eb',
-                textDecoration: 'none',
-                fontWeight: 600,
-              })}
-            >
-              Products
-            </NavLink>
-            <NavLink
-              to="/products/create"
-              style={({ isActive }) => ({
-                color: isActive ? '#5eead4' : '#e5e7eb',
-                textDecoration: 'none',
-                fontWeight: 600,
-              })}
-            >
-              Create Product
-            </NavLink>
-            <NavLink
-              to="/rooms"
-              style={({ isActive }) => ({
-                color: isActive ? '#5eead4' : '#e5e7eb',
-                textDecoration: 'none',
-                fontWeight: 600,
-              })}
-            >
-              Rooms
-            </NavLink>
-            <NavLink
-              to="/rooms/create"
-              style={({ isActive }) => ({
-                color: isActive ? '#5eead4' : '#e5e7eb',
-                textDecoration: 'none',
-                fontWeight: 600,
-              })}
-            >
-              Create Room
-            </NavLink>
-          </nav>
-        </header>
+      <NavBar />
+      <main className="container">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        <main style={{ padding: 24, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          <div>
-            <Routes>
-              <Route path="/products/create" element={<ProductCreatePage />} />
-              <Route path="/products" element={<ProductListPage />} />
-              <Route path="/rooms/create" element={<RoomCreatePage />} />
-              <Route path="/rooms" element={<RoomListPage />} />
-              <Route path="*" element={<Navigate to="/products" replace />} />
-            </Routes>
-          </div>
-          <EventLog events={events} />
-        </main>
-      </div>
+          <Route path="/me/products" element={<MyProductList />} />
+          <Route path="/me/products/create" element={<ProductCreate />} />
+          <Route path="/me/products/:id" element={<MyProductDetail />} />
+          <Route path="/me/products/:id/edit" element={<ProductEdit />} />
+
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
+
+          <Route path="/me/rooms" element={<MyRoomList />} />
+          <Route path="/me/rooms/create" element={<RoomCreate />} />
+          <Route path="/me/rooms/:id" element={<MyRoomDetail />} />
+
+          <Route path="/rooms" element={<RoomList />} />
+          <Route path="/rooms/:id" element={<RoomDetail />} />
+
+          <Route path="*" element={<Navigate to="/products" replace />} />
+        </Routes>
+      </main>
     </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createProduct } from '../api/product';
+import { useAuth } from '../AuthContext';
 
 const initialForm = {
   name: '',
@@ -13,6 +14,7 @@ export default function ProductCreatePage() {
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,6 +46,15 @@ export default function ProductCreatePage() {
       setSubmitting(false);
     }
   };
+
+  if (!user) {
+    return (
+      <div style={{ background: '#fff', padding: 20, borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
+        <h2 style={{ marginTop: 0 }}>Create Product</h2>
+        <p style={{ color: '#ef4444' }}>Please login to create a product.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#fff', padding: 20, borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
