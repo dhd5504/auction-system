@@ -6,10 +6,12 @@
 
 #include "db/sqlite.h"
 #include "security/jwt.h"
+#include "tcp/tcp_client.h"
+#include "ws/ws_server.h"
 
 class RoomApi {
 public:
-    RoomApi(Pistache::Rest::Router& router, SQLiteDb& db, JwtService& jwt);
+    RoomApi(Pistache::Rest::Router& router, SQLiteDb& db, JwtService& jwt, TcpClient& tcp, WsServer& ws);
 
 private:
     bool authorize(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter& response, int& userId, std::string& role);
@@ -18,6 +20,8 @@ private:
     void handleListOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleGetOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleDeleteOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleStartOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleCancelOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
     void handleListPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleGetPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
@@ -26,4 +30,6 @@ private:
 
     SQLiteDb& db;
     JwtService& jwt;
+    TcpClient& tcpClient;
+    WsServer& ws;
 };

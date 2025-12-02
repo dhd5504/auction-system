@@ -11,6 +11,7 @@ struct Room {
     std::string status{"waiting"};
     int hostUserId{0};
     std::optional<std::string> createdAt;
+    std::optional<std::string> updatedAt;
     std::optional<std::string> startedAt;
     std::optional<std::string> endedAt;
     int basePrice{0};

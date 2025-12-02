@@ -42,6 +42,22 @@ export async function deleteRoom(id) {
   return handleResponse(res);
 }
 
+export async function startRoom(id) {
+  const res = await fetch(`${BASE}/me/rooms/${id}/start`, {
+    method: 'POST',
+    headers: { ...authHeader() },
+  });
+  return handleResponse(res);
+}
+
+export async function cancelRoom(id) {
+  const res = await fetch(`${BASE}/me/rooms/${id}/cancel`, {
+    method: 'POST',
+    headers: { ...authHeader() },
+  });
+  return handleResponse(res);
+}
+
 // Public APIs
 export async function getAllRooms() {
   const res = await fetch(`${BASE}/rooms`);

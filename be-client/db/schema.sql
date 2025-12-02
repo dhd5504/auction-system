@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users(
     is_active INTEGER DEFAULT 1,
     role TEXT DEFAULT 'user',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login DATETIME
 );
 
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS products(
     status TEXT DEFAULT 'available',
     owner_user_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     image_url TEXT,
     category TEXT,
     FOREIGN KEY(owner_user_id) REFERENCES users(id)
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS rooms(
     status TEXT DEFAULT 'waiting',
     host_user_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     started_at DATETIME,
     ended_at DATETIME,
     base_price INTEGER,

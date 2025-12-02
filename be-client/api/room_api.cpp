@@ -3,6 +3,8 @@
 #include <regex>
 #include <sstream>
 #include <optional>
+#include <chrono>
+#include <ctime>
 
 using namespace Pistache;
 
@@ -42,17 +44,42 @@ int getIntField(const std::string& body, const std::string& key) {
     return 0;
 }
 
+std::string nowIso() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+    gmtime_r(&t, &tm);
+    char buf[64];
+    std::strftime(buf, sizeof(buf), "%FT%TZ", &tm);
+    return buf;
+}
+
+std::string isoAfterSeconds(int seconds) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::seconds(seconds);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+    gmtime_r(&t, &tm);
+    char buf[64];
+    std::strftime(buf, sizeof(buf), "%FT%TZ", &tm);
+    return buf;
+}
+
 } // namespace
 
-RoomApi::RoomApi(Rest::Router& router, SQLiteDb& db_, JwtService& jwt_)
-    : db(db_), jwt(jwt_) {
+RoomApi::RoomApi(Rest::Router& router, SQLiteDb& db_, JwtService& jwt_, TcpClient& tcp_, WsServer& ws_)
+    : db(db_), jwt(jwt_), tcpClient(tcp_), ws(ws_) {
     // Owner routes
     Rest::Routes::Get(router, "/api/me/rooms", Rest::Routes::bind(&RoomApi::handleListOwn, this));
     Rest::Routes::Get(router, "/api/me/rooms/:id", Rest::Routes::bind(&RoomApi::handleGetOwn, this));
     Rest::Routes::Post(router, "/api/me/rooms", Rest::Routes::bind(&RoomApi::handleCreateOwn, this));
     Rest::Routes::Delete(router, "/api/me/rooms/:id", Rest::Routes::bind(&RoomApi::handleDeleteOwn, this));
+    Rest::Routes::Post(router, "/api/me/rooms/:id/start", Rest::Routes::bind(&RoomApi::handleStartOwn, this));
+    Rest::Routes::Post(router, "/api/me/rooms/:id/cancel", Rest::Routes::bind(&RoomApi::handleCancelOwn, this));
     Rest::Routes::Options(router, "/api/me/rooms", Rest::Routes::bind(&RoomApi::handleOptions, this));
     Rest::Routes::Options(router, "/api/me/rooms/:id", Rest::Routes::bind(&RoomApi::handleOptions, this));
+    Rest::Routes::Options(router, "/api/me/rooms/:id/start", Rest::Routes::bind(&RoomApi::handleOptions, this));
+    Rest::Routes::Options(router, "/api/me/rooms/:id/cancel", Rest::Routes::bind(&RoomApi::handleOptions, this));
 
     // Public routes
     Rest::Routes::Get(router, "/api/rooms", Rest::Routes::bind(&RoomApi::handleListPublic, this));
@@ -169,6 +196,7 @@ void RoomApi::handleListOwn(const Rest::Request& request, Http::ResponseWriter r
                << "\"status\":\"" << escapeJson(r.status) << "\","
                << "\"hostUserId\":" << r.hostUserId << ","
                << "\"createdAt\":\"" << escapeJson(r.createdAt.value_or("")) << "\","
+               << "\"updatedAt\":\"" << escapeJson(r.updatedAt.value_or("")) << "\","
                << "\"startedAt\":\"" << escapeJson(r.startedAt.value_or("")) << "\","
                << "\"endedAt\":\"" << escapeJson(r.endedAt.value_or("")) << "\","
                << "\"basePrice\":" << r.basePrice
@@ -204,6 +232,7 @@ void RoomApi::handleGetOwn(const Rest::Request& request, Http::ResponseWriter re
          << "\"status\":\"" << escapeJson(r.status) << "\","
          << "\"hostUserId\":" << r.hostUserId << ","
          << "\"createdAt\":\"" << escapeJson(r.createdAt.value_or("")) << "\","
+         << "\"updatedAt\":\"" << escapeJson(r.updatedAt.value_or("")) << "\","
          << "\"startedAt\":\"" << escapeJson(r.startedAt.value_or("")) << "\","
          << "\"endedAt\":\"" << escapeJson(r.endedAt.value_or("")) << "\","
          << "\"basePrice\":" << r.basePrice
@@ -227,9 +256,16 @@ void RoomApi::handleDeleteOwn(const Rest::Request& request, Http::ResponseWriter
         return;
     }
 
-    // restore product status if waiting
-    if (room->status == "waiting") {
-        db.updateProductStatus(room->productId, "available");
+    if (room->status != "waiting") {
+        addCors(response);
+        response.send(Http::Code::Bad_Request, "Only delete when status = waiting");
+        return;
+    }
+
+    if (!db.updateProductStatus(room->productId, "available")) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Failed to reset product status");
+        return;
     }
 
     if (!db.deleteRoom(id, userId)) {
@@ -238,7 +274,83 @@ void RoomApi::handleDeleteOwn(const Rest::Request& request, Http::ResponseWriter
         return;
     }
     addCors(response);
+    ws.broadcast("{\"event\":\"ROOM_DELETED\",\"id\":" + std::to_string(id) + "}");
     response.send(Http::Code::Ok, "Deleted");
+}
+
+void RoomApi::handleStartOwn(const Rest::Request& request, Http::ResponseWriter response) {
+    int userId;
+    std::string role;
+    if (!authorize(request, response, userId, role)) return;
+    (void)role;
+
+    int id = request.param(":id").as<int>();
+    auto room = db.getRoomByIdForUser(id, userId);
+    if (!room.has_value()) {
+        addCors(response);
+        response.send(Http::Code::Not_Found, "Not found");
+        return;
+    }
+    if (room->status != "waiting" && room->status != "pending") {
+        addCors(response);
+        response.send(Http::Code::Bad_Request, "Cannot start room in current status");
+        return;
+    }
+
+    std::string startedAt = nowIso();
+    std::string endedAt = isoAfterSeconds(room->duration);
+
+    if (!db.updateRoomStatus(id, userId, "running", startedAt, endedAt)) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Failed to update room");
+        return;
+    }
+    if (!db.updateProductStatus(room->productId, "running")) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Failed to update product status");
+        return;
+    }
+
+    tcpClient.sendCommand("START_ROOM " + std::to_string(id));
+    ws.broadcast("{\"event\":\"ROOM_STARTED\",\"id\":" + std::to_string(id) + "}");
+
+    addCors(response);
+    response.send(Http::Code::Ok, "Started");
+}
+
+void RoomApi::handleCancelOwn(const Rest::Request& request, Http::ResponseWriter response) {
+    int userId;
+    std::string role;
+    if (!authorize(request, response, userId, role)) return;
+    (void)role;
+
+    int id = request.param(":id").as<int>();
+    auto room = db.getRoomByIdForUser(id, userId);
+    if (!room.has_value()) {
+        addCors(response);
+        response.send(Http::Code::Not_Found, "Not found");
+        return;
+    }
+    if (room->status != "waiting") {
+        addCors(response);
+        response.send(Http::Code::Bad_Request, "Only cancel when status = waiting");
+        return;
+    }
+
+    if (!db.updateRoomStatus(id, userId, "cancelled")) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Failed to cancel");
+        return;
+    }
+    if (!db.updateProductStatus(room->productId, "available")) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Failed to reset product status");
+        return;
+    }
+    ws.broadcast("{\"event\":\"ROOM_CANCELLED\",\"id\":" + std::to_string(id) + "}");
+
+    addCors(response);
+    response.send(Http::Code::Ok, "Cancelled");
 }
 
 void RoomApi::handleListPublic(const Rest::Request& /*request*/, Http::ResponseWriter response) {
@@ -255,6 +367,7 @@ void RoomApi::handleListPublic(const Rest::Request& /*request*/, Http::ResponseW
                << "\"status\":\"" << escapeJson(r.status) << "\","
                << "\"hostUserId\":" << r.hostUserId << ","
                << "\"createdAt\":\"" << escapeJson(r.createdAt.value_or("")) << "\","
+               << "\"updatedAt\":\"" << escapeJson(r.updatedAt.value_or("")) << "\","
                << "\"startedAt\":\"" << escapeJson(r.startedAt.value_or("")) << "\","
                << "\"endedAt\":\"" << escapeJson(r.endedAt.value_or("")) << "\","
                << "\"basePrice\":" << r.basePrice
@@ -285,6 +398,7 @@ void RoomApi::handleGetPublic(const Rest::Request& request, Http::ResponseWriter
          << "\"status\":\"" << escapeJson(r.status) << "\","
          << "\"hostUserId\":" << r.hostUserId << ","
          << "\"createdAt\":\"" << escapeJson(r.createdAt.value_or("")) << "\","
+         << "\"updatedAt\":\"" << escapeJson(r.updatedAt.value_or("")) << "\","
          << "\"startedAt\":\"" << escapeJson(r.startedAt.value_or("")) << "\","
          << "\"endedAt\":\"" << escapeJson(r.endedAt.value_or("")) << "\","
          << "\"basePrice\":" << r.basePrice

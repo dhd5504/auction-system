@@ -18,6 +18,7 @@ private:
     void handleGetOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleUpdateOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleDeleteOwn(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void handleUpdateStatus(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
     void handleListPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void handleGetPublic(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);

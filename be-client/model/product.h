@@ -11,6 +11,7 @@ struct Product {
     std::string status{"available"};
     int ownerUserId{0};
     std::optional<std::string> createdAt;
+    std::optional<std::string> updatedAt;
     std::optional<std::string> imageUrl;
     std::optional<std::string> category;
 };

@@ -23,7 +23,8 @@ User mapUser(sqlite3_stmt* stmt) {
     u.isActive = sqlite3_column_int(stmt, 3) != 0;
     if (const unsigned char* t = sqlite3_column_text(stmt, 4)) u.role = reinterpret_cast<const char*>(t);
     if (const unsigned char* t = sqlite3_column_text(stmt, 5)) u.createdAt = reinterpret_cast<const char*>(t);
-    if (const unsigned char* t = sqlite3_column_text(stmt, 6)) u.lastLogin = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 6)) u.updatedAt = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 7)) u.lastLogin = reinterpret_cast<const char*>(t);
     return u;
 }
 
@@ -36,8 +37,9 @@ Product mapProduct(sqlite3_stmt* stmt) {
     if (const unsigned char* t = sqlite3_column_text(stmt, 4)) p.status = reinterpret_cast<const char*>(t);
     p.ownerUserId = sqlite3_column_int(stmt, 5);
     if (const unsigned char* t = sqlite3_column_text(stmt, 6)) p.createdAt = reinterpret_cast<const char*>(t);
-    if (const unsigned char* t = sqlite3_column_text(stmt, 7)) p.imageUrl = reinterpret_cast<const char*>(t);
-    if (const unsigned char* t = sqlite3_column_text(stmt, 8)) p.category = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 7)) p.updatedAt = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 8)) p.imageUrl = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 9)) p.category = reinterpret_cast<const char*>(t);
     return p;
 }
 
@@ -50,9 +52,10 @@ Room mapRoom(sqlite3_stmt* stmt) {
     if (const unsigned char* t = sqlite3_column_text(stmt, 4)) r.status = reinterpret_cast<const char*>(t);
     r.hostUserId = sqlite3_column_int(stmt, 5);
     if (const unsigned char* t = sqlite3_column_text(stmt, 6)) r.createdAt = reinterpret_cast<const char*>(t);
-    if (const unsigned char* t = sqlite3_column_text(stmt, 7)) r.startedAt = reinterpret_cast<const char*>(t);
-    if (const unsigned char* t = sqlite3_column_text(stmt, 8)) r.endedAt = reinterpret_cast<const char*>(t);
-    r.basePrice = sqlite3_column_int(stmt, 9);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 7)) r.updatedAt = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 8)) r.startedAt = reinterpret_cast<const char*>(t);
+    if (const unsigned char* t = sqlite3_column_text(stmt, 9)) r.endedAt = reinterpret_cast<const char*>(t);
+    r.basePrice = sqlite3_column_int(stmt, 10);
     return r;
 }
 
@@ -189,7 +192,7 @@ bool SQLiteDb::addProduct(const Product& product, int& newId) {
 
 std::vector<Product> SQLiteDb::getProducts(int ownerUserId) {
     const char* sql = R"(
-        SELECT id, name, description, start_price, status, owner_user_id, created_at, image_url, category
+        SELECT id, name, description, start_price, status, owner_user_id, created_at, updated_at, image_url, category
         FROM products
         WHERE owner_user_id = ?;
     )";
@@ -214,7 +217,7 @@ std::vector<Product> SQLiteDb::getProducts(int ownerUserId) {
 
 std::vector<Product> SQLiteDb::getProductsPublic() {
     const char* sql = R"(
-        SELECT id, name, description, start_price, status, owner_user_id, created_at, image_url, category
+        SELECT id, name, description, start_price, status, owner_user_id, created_at, updated_at, image_url, category
         FROM products;
     )";
     std::vector<Product> products;
@@ -236,7 +239,7 @@ std::vector<Product> SQLiteDb::getProductsPublic() {
 
 std::optional<Product> SQLiteDb::getProductById(int id) {
     const char* sql = R"(
-        SELECT id, name, description, start_price, status, owner_user_id, created_at, image_url, category
+        SELECT id, name, description, start_price, status, owner_user_id, created_at, updated_at, image_url, category
         FROM products WHERE id = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -259,7 +262,7 @@ std::optional<Product> SQLiteDb::getProductById(int id) {
 
 std::optional<Product> SQLiteDb::getProductByIdForOwner(int id, int ownerUserId) {
     const char* sql = R"(
-        SELECT id, name, description, start_price, status, owner_user_id, created_at, image_url, category
+        SELECT id, name, description, start_price, status, owner_user_id, created_at, updated_at, image_url, category
         FROM products WHERE id = ? AND owner_user_id = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -284,7 +287,7 @@ std::optional<Product> SQLiteDb::getProductByIdForOwner(int id, int ownerUserId)
 bool SQLiteDb::updateProduct(const Product& product) {
     const char* sql = R"(
         UPDATE products
-        SET name = ?, description = ?, start_price = ?, status = ?, image_url = ?, category = ?
+        SET name = ?, description = ?, start_price = ?, status = ?, image_url = ?, category = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND owner_user_id = ?;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -343,10 +346,10 @@ bool SQLiteDb::deleteProduct(int id, int ownerUserId) {
 
 bool SQLiteDb::updateProductStatus(int id, const std::string& status, std::optional<int> ownerUserId) {
     const char* sqlOwner = R"(
-        UPDATE products SET status = ? WHERE id = ? AND owner_user_id = ?;
+        UPDATE products SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND owner_user_id = ?;
     )";
     const char* sqlAny = R"(
-        UPDATE products SET status = ? WHERE id = ?;
+        UPDATE products SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
     if (!db) return false;
@@ -414,7 +417,7 @@ bool SQLiteDb::addRoom(const Room& room, int& newId) {
 
 std::vector<Room> SQLiteDb::getRooms(int hostUserId) {
     const char* sql = R"(
-        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, started_at, ended_at, base_price
+        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, updated_at, started_at, ended_at, base_price
         FROM rooms WHERE host_user_id = ?;
     )";
     std::vector<Room> rooms;
@@ -438,7 +441,7 @@ std::vector<Room> SQLiteDb::getRooms(int hostUserId) {
 
 std::vector<Room> SQLiteDb::getRoomsPublic() {
     const char* sql = R"(
-        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, started_at, ended_at, base_price
+        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, updated_at, started_at, ended_at, base_price
         FROM rooms;
     )";
     std::vector<Room> rooms;
@@ -460,7 +463,7 @@ std::vector<Room> SQLiteDb::getRoomsPublic() {
 
 std::optional<Room> SQLiteDb::getRoomByIdForUser(int id, int hostUserId) {
     const char* sql = R"(
-        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, started_at, ended_at, base_price
+        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, updated_at, started_at, ended_at, base_price
         FROM rooms WHERE id = ? AND host_user_id = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -485,7 +488,7 @@ std::optional<Room> SQLiteDb::getRoomByIdForUser(int id, int hostUserId) {
 
 std::optional<Room> SQLiteDb::getRoomById(int id) {
     const char* sql = R"(
-        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, started_at, ended_at, base_price
+        SELECT id, room_name, product_id, duration, status, host_user_id, created_at, updated_at, started_at, ended_at, base_price
         FROM rooms WHERE id = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -533,6 +536,45 @@ bool SQLiteDb::deleteRoom(int id, int hostUserId) {
     return sqlite3_changes(db) > 0;
 }
 
+bool SQLiteDb::updateRoomStatus(int id, int hostUserId, const std::string& status, std::optional<std::string> startedAt, std::optional<std::string> endedAt) {
+    const char* sql = R"(
+        UPDATE rooms
+        SET status = ?, started_at = ?, ended_at = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND host_user_id = ?;
+    )";
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    if (!db) return false;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, status.c_str(), -1, SQLITE_TRANSIENT);
+    if (startedAt.has_value()) {
+        sqlite3_bind_text(stmt, 2, startedAt->c_str(), -1, SQLITE_TRANSIENT);
+    } else {
+        sqlite3_bind_null(stmt, 2);
+    }
+    if (endedAt.has_value()) {
+        sqlite3_bind_text(stmt, 3, endedAt->c_str(), -1, SQLITE_TRANSIENT);
+    } else {
+        sqlite3_bind_null(stmt, 3);
+    }
+    sqlite3_bind_int(stmt, 4, id);
+    sqlite3_bind_int(stmt, 5, hostUserId);
+
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        std::cerr << "Update room status failed: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_finalize(stmt);
+    return sqlite3_changes(db) > 0;
+}
+
 bool SQLiteDb::addUser(const User& user, int& newId) {
     const char* sql = R"(
         INSERT INTO users(username, password, is_active, role, last_login)
@@ -570,7 +612,7 @@ bool SQLiteDb::addUser(const User& user, int& newId) {
 
 std::optional<User> SQLiteDb::getUserByUsername(const std::string& username) {
     const char* sql = R"(
-        SELECT id, username, password, is_active, role, created_at, last_login
+        SELECT id, username, password, is_active, role, created_at, updated_at, last_login
         FROM users WHERE username = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -594,7 +636,7 @@ std::optional<User> SQLiteDb::getUserByUsername(const std::string& username) {
 
 std::optional<User> SQLiteDb::getUserById(int id) {
     const char* sql = R"(
-        SELECT id, username, password, is_active, role, created_at, last_login
+        SELECT id, username, password, is_active, role, created_at, updated_at, last_login
         FROM users WHERE id = ? LIMIT 1;
     )";
     std::lock_guard<std::recursive_mutex> lock(mutex);

@@ -17,6 +17,7 @@ import MyRoomDetail from './pages/MyRoomDetail';
 import RoomCreate from './pages/RoomCreate';
 import RoomList from './pages/RoomList';
 import RoomDetail from './pages/RoomDetail';
+import AuctionRoomPage from './pages/AuctionRoomPage';
 
 function NavBar() {
   const { user, logout } = useAuth();
@@ -73,6 +74,7 @@ function AppShell() {
 
           <Route path="/rooms" element={<RoomList />} />
           <Route path="/rooms/:id" element={<RoomDetail />} />
+          <Route path="/rooms/:id/auction" element={<AuctionRoomPage />} />
 
           <Route path="*" element={<Navigate to="/products" replace />} />
         </Routes>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getMyRooms, deleteRoom } from '../api/rooms';
+import { getMyRooms, deleteRoom, startRoom } from '../api/rooms';
 import StatusBadge from '../components/StatusBadge';
 
 export default function MyRoomList() {
@@ -39,6 +39,19 @@ export default function MyRoomList() {
     }
   };
 
+  const handleStart = async (id, status) => {
+    if (status !== 'waiting' && status !== 'pending') {
+      alert('Only start when status = waiting/pending');
+      return;
+    }
+    try {
+      await startRoom(id);
+      await load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div className="card">
       <div className="card-header">
@@ -58,6 +71,9 @@ export default function MyRoomList() {
               <div className="muted">Product #{r.productId} | Duration: {r.duration}s | Base: {r.basePrice}</div>
             </div>
             <div className="actions">
+              <button onClick={() => handleStart(r.id, r.status)} disabled={r.status !== 'waiting' && r.status !== 'pending'}>
+                Start
+              </button>
               <button onClick={() => handleDelete(r.id, r.status)} disabled={r.status !== 'waiting'}>
                 Delete
               </button>

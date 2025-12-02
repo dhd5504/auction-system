@@ -35,6 +35,7 @@ public:
     std::optional<Room> getRoomByIdForUser(int id, int hostUserId);
     std::optional<Room> getRoomById(int id);
     bool deleteRoom(int id, int hostUserId);
+    bool updateRoomStatus(int id, int hostUserId, const std::string& status, std::optional<std::string> startedAt = std::nullopt, std::optional<std::string> endedAt = std::nullopt);
 
     bool addUser(const User& user, int& newId);
     std::optional<User> getUserByUsername(const std::string& username);

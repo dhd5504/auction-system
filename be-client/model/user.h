@@ -10,5 +10,6 @@ struct User {
     bool isActive{true};
     std::string role{"user"};
     std::string createdAt;
+    std::optional<std::string> updatedAt;
     std::optional<std::string> lastLogin;
 };

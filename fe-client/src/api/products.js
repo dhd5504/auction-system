@@ -51,6 +51,15 @@ export async function deleteProduct(id) {
   return handleResponse(res);
 }
 
+export async function updateProductStatus(id, status) {
+  const res = await fetch(`${BASE}/me/products/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify({ status }),
+  });
+  return handleResponse(res);
+}
+
 // Public APIs
 export async function getAllProducts() {
   const res = await fetch(`${BASE}/products`);

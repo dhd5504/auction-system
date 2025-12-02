@@ -3,6 +3,8 @@
 #include <regex>
 #include <sstream>
 #include <optional>
+#include <vector>
+#include <algorithm>
 
 using namespace Pistache;
 
@@ -52,8 +54,10 @@ ProductApi::ProductApi(Rest::Router& router, SQLiteDb& db_, JwtService& jwt_)
     Rest::Routes::Post(router, "/api/me/products", Rest::Routes::bind(&ProductApi::handleCreateOwn, this));
     Rest::Routes::Put(router, "/api/me/products/:id", Rest::Routes::bind(&ProductApi::handleUpdateOwn, this));
     Rest::Routes::Delete(router, "/api/me/products/:id", Rest::Routes::bind(&ProductApi::handleDeleteOwn, this));
+    Rest::Routes::Patch(router, "/api/me/products/:id/status", Rest::Routes::bind(&ProductApi::handleUpdateStatus, this));
     Rest::Routes::Options(router, "/api/me/products", Rest::Routes::bind(&ProductApi::handleOptions, this));
     Rest::Routes::Options(router, "/api/me/products/:id", Rest::Routes::bind(&ProductApi::handleOptions, this));
+    Rest::Routes::Options(router, "/api/me/products/:id/status", Rest::Routes::bind(&ProductApi::handleOptions, this));
 
     // Public routes
     Rest::Routes::Get(router, "/api/products", Rest::Routes::bind(&ProductApi::handleListPublic, this));
@@ -265,6 +269,40 @@ void ProductApi::handleDeleteOwn(const Rest::Request& request, Http::ResponseWri
     response.send(Http::Code::Ok, "Deleted");
 }
 
+void ProductApi::handleUpdateStatus(const Rest::Request& request, Http::ResponseWriter response) {
+    int userId;
+    std::string role;
+    if (!authorize(request, response, userId, role)) {
+        return;
+    }
+    (void)role;
+
+    int id = request.param(":id").as<int>();
+    auto existing = db.getProductByIdForOwner(id, userId);
+    if (!existing.has_value()) {
+        addCors(response);
+        response.send(Http::Code::Not_Found, "Not found");
+        return;
+    }
+
+    std::string body = request.body();
+    std::string status = getStringField(body, "status");
+    const std::vector<std::string> allowed = {"available", "pending", "running", "sold", "cancelled"};
+    if (std::find(allowed.begin(), allowed.end(), status) == allowed.end()) {
+        addCors(response);
+        response.send(Http::Code::Bad_Request, "Invalid status");
+        return;
+    }
+
+    if (!db.updateProductStatus(id, status, userId)) {
+        addCors(response);
+        response.send(Http::Code::Internal_Server_Error, "Update status failed");
+        return;
+    }
+    addCors(response);
+    response.send(Http::Code::Ok, "Status updated");
+}
+
 void ProductApi::handleListPublic(const Rest::Request& /*request*/, Http::ResponseWriter response) {
     auto products = db.getProductsPublic();
     std::ostringstream stream;
@@ -324,6 +362,6 @@ void ProductApi::handleOptions(const Rest::Request& /*request*/, Http::ResponseW
 void ProductApi::addCors(Http::ResponseWriter& response) {
     response.headers()
         .add<Http::Header::AccessControlAllowOrigin>("*")
-        .add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, DELETE, OPTIONS")
+        .add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, PATCH, DELETE, OPTIONS")
         .add<Http::Header::AccessControlAllowHeaders>("Content-Type, Authorization");
 }

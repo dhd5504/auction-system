@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f5f7fb; }
 a { color: #2563eb; text-decoration: none; }
 .container { padding: 16px; max-width: 960px; margin: 0 auto; }
