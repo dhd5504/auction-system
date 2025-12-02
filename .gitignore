@@ -13,23 +13,21 @@
 *.db
 *.sqlite
 *-journal
+data/
 
 ###################################
 # C++ BUILD OUTPUT
 ###################################
-# be-client build folder
-be-client/build/
-be-client/CMakeFiles/
-be-client/CMakeCache.txt
-be-client/cmake_install.cmake
+# C++ build artifacts
+build/
+gateway/build/
+tcp-server/build/
 
-# server build artifacts
-server/build/
-server/CMakeFiles/
-server/CMakeCache.txt
-server/cmake_install.cmake
+# CMake files
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
 
-# general C++ build garbage
 *.o
 *.so
 *.a

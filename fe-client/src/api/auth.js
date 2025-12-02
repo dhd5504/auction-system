@@ -1,4 +1,4 @@
-const AUTH_BASE = 'http://localhost:8080/api';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8080/api';
 
 async function handleResponse(response) {
   if (!response.ok) {
@@ -14,7 +14,7 @@ async function handleResponse(response) {
 }
 
 export async function login(username, password) {
-  const response = await fetch(`${AUTH_BASE}/login`, {
+  const response = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
@@ -23,7 +23,7 @@ export async function login(username, password) {
 }
 
 export async function register(username, password) {
-  const response = await fetch(`${AUTH_BASE}/register`, {
+  const response = await fetch(`${API_BASE}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
