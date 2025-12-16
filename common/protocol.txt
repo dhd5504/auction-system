@@ -1,0 +1,17 @@
+Text protocol v0 (client/server demo)
+-------------------------------------
+- Each request is a single ASCII line ending with '\n'.
+- Commands use spaces for LOGIN and '|' as a delimiter for REGISTER fields.
+
+Requests
+- LOGIN <email> <password>
+- REGISTER <fullName>|<email>|<password>|<phone>
+- PING
+
+Responses
+- OK <optional message>
+- ERROR <reason>
+
+Notes
+- Client code sanitizes line breaks and '|' before sending.
+- UI never touches QTcpSocket directly; network/TcpClient wraps the socket and emits signals back to UI.

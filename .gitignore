@@ -1,0 +1,47 @@
+# Build and cache directories
+build/
+**/build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+.cache/
+
+# Compiled objects/binaries
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.exe
+*.pdb
+
+# Qt Creator / CLion user files
+*.user
+*.user.*
+.idea/
+.vscode/
+.qmake.stash
+.qmake.cache
+
+# Qt auto-generated
+*_autogen/
+moc_*.cpp
+ui_*.h
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*~
+*.swp
+*.swo
