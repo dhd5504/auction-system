@@ -1,15 +1,18 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
+#include <QByteArray>
+#include <QJsonObject>
 #include <QString>
-#include <QStringList>
 
-struct ParsedCommand
+struct Frame
 {
-    QString verb;
-    QStringList args;
+    QString command;
+    quint64 requestId = 0;
+    QJsonObject payload;
 };
 
-ParsedCommand parseCommand(const QString &line);
+Frame parseFrame(const QByteArray &headerLine, const QByteArray &payloadBytes);
+QByteArray buildResponse(const QString &command, quint64 reqId, const QJsonObject &payload);
 
 #endif // PROTOCOL_H

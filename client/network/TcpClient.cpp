@@ -1,7 +1,9 @@
 #include "TcpClient.h"
 
 #include <QAbstractSocket>
+#include <QJsonDocument>
 #include <QHostAddress>
+#include <QDebug>
 
 TcpClient::TcpClient(QObject *parent)
     : QObject(parent)
@@ -33,34 +35,45 @@ bool TcpClient::isConnected() const
 
 void TcpClient::sendLogin(const QString &email, const QString &password)
 {
-    sendMessage(Protocol::buildLoginRequest(email, password), RequestType::Login);
+    const quint64 reqId = nextRequestId++;
+    auto frame = Protocol::makeLoginRequest(reqId, email, password);
+    sendFrame(frame, RequestType::Login);
 }
 
 void TcpClient::sendRegister(const User &user)
 {
-    sendMessage(Protocol::buildRegisterRequest(user), RequestType::Register);
+    const quint64 reqId = nextRequestId++;
+    auto frame = Protocol::makeRegisterRequest(reqId, user);
+    sendFrame(frame, RequestType::Register);
 }
 
 void TcpClient::sendPing()
 {
-    sendMessage(Protocol::buildPingRequest(), RequestType::Generic);
+    const quint64 reqId = nextRequestId++;
+    auto frame = Protocol::makePing(reqId);
+    sendFrame(frame, RequestType::Generic);
 }
 
-void TcpClient::sendMessage(const QString &payload, RequestType type)
+void TcpClient::sendFrame(const Protocol::Frame &frame, RequestType type)
 {
     if (!ensureConnected()) {
         emit errorOccurred(QStringLiteral("Not connected to server."));
         return;
     }
 
-    const QByteArray data = payload.toUtf8();
+    const QString header = Protocol::buildHeader(frame.command, frame.requestId, frame.payload.size());
+    QByteArray data = header.toUtf8();
+    data.append(frame.payload);
+
+    qInfo() << "[CLIENT->SERVER]" << frame.command << "req" << frame.requestId << "len" << frame.payload.size();
+
     const qint64 bytesWritten = socket->write(data);
     if (bytesWritten == -1) {
         emit errorOccurred(socket->errorString());
         return;
     }
 
-    pendingRequests.enqueue(type);
+    pendingRequests.enqueue({frame.requestId, type});
 }
 
 bool TcpClient::ensureConnected()
@@ -80,27 +93,66 @@ bool TcpClient::ensureConnected()
 
 void TcpClient::handleReadyRead()
 {
-    while (socket->canReadLine()) {
-        const QString line = QString::fromUtf8(socket->readLine());
-        const Protocol::Response response = Protocol::parseResponseLine(line);
+    buffer.append(socket->readAll());
+
+    auto parseLen = [](const QByteArray &header) -> int {
+        const QList<QByteArray> parts = header.trimmed().split(';');
+        for (const QByteArray &p : parts) {
+            if (p.startsWith("LEN=")) {
+                bool ok = false;
+                int len = p.mid(4).toInt(&ok);
+                if (ok) return len;
+            }
+        }
+        return 0;
+    };
+
+    while (true) {
+        if (currentHeader.isEmpty()) {
+            const int newlineIndex = buffer.indexOf('\n');
+            if (newlineIndex == -1) {
+                return; // wait for full header line
+            }
+            currentHeader = buffer.left(newlineIndex + 1);
+            buffer.remove(0, newlineIndex + 1);
+            expectedPayloadLen = parseLen(currentHeader);
+        }
+
+        if (expectedPayloadLen > buffer.size()) {
+            return; // wait for full payload
+        }
+
+        QByteArray payload = buffer.left(expectedPayloadLen);
+        buffer.remove(0, expectedPayloadLen);
+
+        Protocol::Frame frame = Protocol::parseFrame(currentHeader, payload);
+        qInfo() << "[SERVER->CLIENT]" << frame.command << "req" << frame.requestId << "len" << frame.payload.size();
 
         RequestType type = RequestType::Generic;
-        if (!pendingRequests.isEmpty()) {
-            type = pendingRequests.dequeue();
+        if (!pendingRequests.isEmpty() && pendingRequests.head().first == frame.requestId) {
+            type = pendingRequests.dequeue().second;
         }
 
-        switch (type) {
-        case RequestType::Login:
-            emit loginFinished(response.success, response.message);
-            break;
-        case RequestType::Register:
-            emit registerFinished(response.success, response.message);
-            break;
-        case RequestType::Generic:
-        default:
-            emit messageReceived(response.message.isEmpty() ? line.trimmed() : response.message);
-            break;
+        if (type == RequestType::Login) {
+            const auto loginResp = Protocol::parseLoginResponse(frame);
+            emit loginFinished(loginResp.success,
+                               loginResp.message.isEmpty() ? QStringLiteral("Login OK") : loginResp.message);
+        } else if (type == RequestType::Register) {
+            const QJsonDocument doc = QJsonDocument::fromJson(frame.payload);
+            const QString message = doc.isObject()
+                                        ? doc.object().value(QStringLiteral("message")).toString()
+                                        : QString();
+            const bool success = frame.command.toUpper() == QLatin1String("REGISTER_OK");
+            emit registerFinished(success,
+                                  message.isEmpty()
+                                      ? (success ? QStringLiteral("Register OK") : QStringLiteral("Register failed"))
+                                      : message);
+        } else {
+            emit messageReceived(QString::fromUtf8(frame.payload));
         }
+
+        currentHeader.clear();
+        expectedPayloadLen = -1;
     }
 }
 

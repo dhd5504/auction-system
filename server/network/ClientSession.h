@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QTcpSocket>
 
+#include "protocol/Protocol.h"
+
 class CommandHandler;
 
 class ClientSession : public QObject
@@ -22,12 +24,15 @@ private slots:
     void handleDisconnected();
 
 private:
-    void processLine(const QString &line);
-    void sendResponse(const QString &text);
+    void processFrame(const Frame &frame);
+    void processBuffer();
+    void sendResponse(const QByteArray &data);
 
     QTcpSocket *socket;
     CommandHandler *commandHandler;
     QByteArray buffer;
+    QByteArray currentHeader;
+    int expectedPayloadLen = -1;
 };
 
 #endif // CLIENTSESSION_H

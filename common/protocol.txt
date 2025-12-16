@@ -1,17 +1,25 @@
-Text protocol v0 (client/server demo)
--------------------------------------
-- Each request is a single ASCII line ending with '\n'.
-- Commands use spaces for LOGIN and '|' as a delimiter for REGISTER fields.
+Protocol v1 (header + JSON payload)
+-----------------------------------
+- Frame = HEADER line + JSON payload (UTF-8).
+- Header: CMD=<COMMAND>;REQ=<requestId>;LEN=<payloadBytes>\n
+  * REQ=0 is server push/broadcast.
+  * LEN is byte length of JSON payload.
+- Payload: compact JSON ({} allowed), UTF-8, length must match LEN.
 
-Requests
-- LOGIN <email> <password>
-- REGISTER <fullName>|<email>|<password>|<phone>
-- PING
+Auth commands
+- LOGIN: client→server
+  Header: CMD=LOGIN;REQ=<id>;LEN=<len>
+  Body: {"username":"alice","password":"123","client":"qt"}
+- LOGIN_OK: server→client
+  Header: CMD=LOGIN_OK;REQ=<same id>;LEN=<len>
+  Body: {"userId":1,"username":"alice","token":"abc123"}
+- LOGIN_FAIL: server→client
+  Header: CMD=LOGIN_FAIL;REQ=<same id>;LEN=<len>
+  Body: {"code":401,"message":"Invalid credentials"}
 
-Responses
-- OK <optional message>
-- ERROR <reason>
+Ping
+- PING → PONG echo with message field.
 
 Notes
-- Client code sanitizes line breaks and '|' before sending.
-- UI never touches QTcpSocket directly; network/TcpClient wraps the socket and emits signals back to UI.
+- Header is exactly one line, ends with '\n'.
+- UI does not touch sockets; TcpClient wraps framing/parsing, CommandHandler/TcpServer handle server side.

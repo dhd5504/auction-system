@@ -38,13 +38,17 @@ private slots:
 private:
     enum class RequestType { Generic, Login, Register };
 
-    void sendMessage(const QString &payload, RequestType type);
+    void sendFrame(const Protocol::Frame &frame, RequestType type);
     bool ensureConnected();
 
     QTcpSocket *socket;
     QString host;
     quint16 port = 0;
-    QQueue<RequestType> pendingRequests;
+    QQueue<std::pair<quint64, RequestType>> pendingRequests;
+    quint64 nextRequestId = 1;
+    QByteArray buffer;
+    QByteArray currentHeader;
+    int expectedPayloadLen = -1;
 };
 
 #endif // TCPCLIENT_H

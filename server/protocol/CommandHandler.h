@@ -15,11 +15,12 @@ class CommandHandler : public QObject
 public:
     explicit CommandHandler(Database &db, QObject *parent = nullptr);
 
-    QString handle(const QString &line);
+    QByteArray handle(const Frame &frame);
 
 private:
-    QString handleLogin(const ParsedCommand &cmd);
-    QString handleRegister(const ParsedCommand &cmd);
+    QByteArray handleLogin(const Frame &frame);
+    QByteArray handleRegister(const Frame &frame);
+    QByteArray makeError(const QString &cmd, quint64 reqId, const QString &message);
 
     Database &database;
 };

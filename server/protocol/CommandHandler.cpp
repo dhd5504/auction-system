@@ -3,75 +3,92 @@
 #include "db/Database.h"
 #include "protocol/Protocol.h"
 
+#include <QJsonObject>
+
 CommandHandler::CommandHandler(Database &db, QObject *parent)
     : QObject(parent)
     , database(db)
 {
 }
 
-QString CommandHandler::handle(const QString &line)
+QByteArray CommandHandler::handle(const Frame &frame)
 {
-    const ParsedCommand cmd = parseCommand(line);
-    const QString verb = cmd.verb.toUpper();
-
+    const QString verb = frame.command.toUpper();
     if (verb == QLatin1String("PING")) {
-        return QStringLiteral("OK PONG\n");
+        QJsonObject payload;
+        payload.insert(QStringLiteral("message"), QStringLiteral("PONG"));
+        return buildResponse(QStringLiteral("PONG"), frame.requestId, payload);
     }
 
     if (verb == QLatin1String("LOGIN")) {
-        return handleLogin(cmd);
+        return handleLogin(frame);
     }
 
     if (verb == QLatin1String("REGISTER")) {
-        return handleRegister(cmd);
+        return handleRegister(frame);
     }
 
-    return QStringLiteral("ERROR Unknown command\n");
+    return makeError(frame.command, frame.requestId, QStringLiteral("Unknown command"));
 }
 
-QString CommandHandler::handleLogin(const ParsedCommand &cmd)
+QByteArray CommandHandler::handleLogin(const Frame &frame)
 {
-    if (cmd.args.size() < 2) {
-        return QStringLiteral("ERROR Missing credentials\n");
+    const QString username = frame.payload.value(QStringLiteral("username")).toString();
+    const QString password = frame.payload.value(QStringLiteral("password")).toString();
+    const QString clientName = frame.payload.value(QStringLiteral("client")).toString();
+
+    if (username.isEmpty() || password.isEmpty()) {
+        return makeError(QStringLiteral("LOGIN"), frame.requestId, QStringLiteral("Missing credentials"));
     }
 
-    const QString email = cmd.args.at(0);
-    const QString password = cmd.args.at(1);
-
-    if (database.verifyLogin(email, password)) {
-        return QStringLiteral("OK LOGIN\n");
+    if (database.verifyLogin(username, password)) {
+        QJsonObject payload;
+        payload.insert(QStringLiteral("userId"), 1);
+        payload.insert(QStringLiteral("username"), username);
+        payload.insert(QStringLiteral("token"), QStringLiteral("demo_token"));
+        payload.insert(QStringLiteral("client"), clientName);
+        return buildResponse(QStringLiteral("LOGIN_OK"), frame.requestId, payload);
     }
-    return QStringLiteral("ERROR Invalid email or password\n");
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("code"), 401);
+    payload.insert(QStringLiteral("message"), QStringLiteral("Invalid credentials"));
+    return buildResponse(QStringLiteral("LOGIN_FAIL"), frame.requestId, payload);
 }
 
-QString CommandHandler::handleRegister(const ParsedCommand &cmd)
+QByteArray CommandHandler::handleRegister(const Frame &frame)
 {
-    if (cmd.args.isEmpty()) {
-        return QStringLiteral("ERROR Missing data\n");
+    const QString username = frame.payload.value(QStringLiteral("username")).toString();
+    const QString password = frame.payload.value(QStringLiteral("password")).toString();
+    const QString fullName = frame.payload.value(QStringLiteral("fullName")).toString();
+    const QString phone = frame.payload.value(QStringLiteral("phone")).toString();
+
+    if (username.isEmpty() || password.isEmpty()) {
+        return makeError(QStringLiteral("REGISTER"), frame.requestId, QStringLiteral("Missing fields"));
     }
 
-    const QStringList parts = cmd.args.first().split('|');
-    if (parts.size() < 4) {
-        return QStringLiteral("ERROR Invalid register payload\n");
+    if (database.userExists(username)) {
+        return makeError(QStringLiteral("REGISTER"), frame.requestId, QStringLiteral("Email already registered"));
     }
 
     UserRecord user;
-    user.fullName = parts.at(0).trimmed();
-    user.email = parts.at(1).trimmed();
-    user.password = parts.at(2);
-    user.phone = parts.at(3).trimmed();
-
-    if (user.email.isEmpty() || user.password.isEmpty()) {
-        return QStringLiteral("ERROR Email and password required\n");
-    }
-
-    if (database.userExists(user.email)) {
-        return QStringLiteral("ERROR Email already registered\n");
-    }
+    user.email = username;
+    user.password = password;
+    user.fullName = fullName.isEmpty() ? username : fullName;
+    user.phone = phone;
 
     if (!database.insertUser(user)) {
-        return QStringLiteral("ERROR Failed to create user\n");
+        return makeError(QStringLiteral("REGISTER"), frame.requestId, QStringLiteral("Failed to create user"));
     }
 
-    return QStringLiteral("OK REGISTER\n");
+    QJsonObject payload;
+    payload.insert(QStringLiteral("message"), QStringLiteral("Register success"));
+    return buildResponse(QStringLiteral("REGISTER_OK"), frame.requestId, payload);
+}
+
+QByteArray CommandHandler::makeError(const QString &cmd, quint64 reqId, const QString &message)
+{
+    QJsonObject payload;
+    payload.insert(QStringLiteral("message"), message);
+    return buildResponse(cmd + QStringLiteral("_FAIL"), reqId, payload);
 }
