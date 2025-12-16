@@ -34,6 +34,8 @@ signals:
 private slots:
     void handleReadyRead();
     void handleError(QAbstractSocket::SocketError socketError);
+    void handleConnected();
+    void handleDisconnected();
 
 private:
     enum class RequestType { Generic, Login, Register };

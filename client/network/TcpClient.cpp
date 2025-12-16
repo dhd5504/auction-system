@@ -9,8 +9,8 @@ TcpClient::TcpClient(QObject *parent)
     : QObject(parent)
     , socket(new QTcpSocket(this))
 {
-    connect(socket, &QTcpSocket::connected, this, &TcpClient::connected);
-    connect(socket, &QTcpSocket::disconnected, this, &TcpClient::disconnected);
+    connect(socket, &QTcpSocket::connected, this, &TcpClient::handleConnected);
+    connect(socket, &QTcpSocket::disconnected, this, &TcpClient::handleDisconnected);
     connect(socket, &QTcpSocket::readyRead, this, &TcpClient::handleReadyRead);
     connect(socket, &QTcpSocket::errorOccurred, this, &TcpClient::handleError);
 }
@@ -159,4 +159,16 @@ void TcpClient::handleReadyRead()
 void TcpClient::handleError(QAbstractSocket::SocketError)
 {
     emit errorOccurred(socket->errorString());
+}
+
+void TcpClient::handleConnected()
+{
+    qInfo() << "[CLIENT] connected to" << host << ":" << port;
+    emit connected();
+}
+
+void TcpClient::handleDisconnected()
+{
+    qInfo() << "[CLIENT] disconnected";
+    emit disconnected();
 }
