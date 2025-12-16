@@ -23,6 +23,7 @@ set(SOURCES
     db/Database.h
     db/Database.cpp
     protocol/Protocol.h
+    protocol/Protocol.cpp
     protocol/CommandHandler.cpp
 )
 

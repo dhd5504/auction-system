@@ -39,7 +39,10 @@ void Database::close()
 bool Database::userExists(const QString &email) const
 {
     QSqlQuery query(db);
-    query.prepare(QStringLiteral("SELECT COUNT(1) FROM users WHERE email = :email"));
+    if (!query.prepare(QStringLiteral("SELECT COUNT(1) FROM users WHERE email = :email"))) {
+        qWarning() << "userExists prepare failed:" << query.lastError();
+        return false;
+    }
     query.bindValue(":email", email);
     if (!query.exec()) {
         qWarning() << "userExists failed:" << query.lastError();
@@ -54,8 +57,11 @@ bool Database::userExists(const QString &email) const
 bool Database::insertUser(const UserRecord &user)
 {
     QSqlQuery query(db);
-    query.prepare(QStringLiteral("INSERT INTO users(full_name, email, password, phone) "
-                                 "VALUES(:full_name, :email, :password, :phone)"));
+    if (!query.prepare(QStringLiteral("INSERT INTO users(full_name, email, password, phone) "
+                                      "VALUES(:full_name, :email, :password, :phone)"))) {
+        qWarning() << "insertUser prepare failed:" << query.lastError();
+        return false;
+    }
     query.bindValue(":full_name", user.fullName);
     query.bindValue(":email", user.email);
     query.bindValue(":password", user.password);
@@ -70,7 +76,10 @@ bool Database::insertUser(const UserRecord &user)
 bool Database::verifyLogin(const QString &email, const QString &password) const
 {
     QSqlQuery query(db);
-    query.prepare(QStringLiteral("SELECT password FROM users WHERE email = :email LIMIT 1"));
+    if (!query.prepare(QStringLiteral("SELECT password FROM users WHERE email = :email LIMIT 1"))) {
+        qWarning() << "verifyLogin prepare failed:" << query.lastError();
+        return false;
+    }
     query.bindValue(":email", email);
     if (!query.exec()) {
         qWarning() << "verifyLogin failed:" << query.lastError();
@@ -86,10 +95,17 @@ bool Database::verifyLogin(const QString &email, const QString &password) const
 
 bool Database::execBatch(const QString &sql)
 {
+    const QStringList statements = sql.split(';', Qt::SkipEmptyParts);
     QSqlQuery query(db);
-    if (!query.exec(sql)) {
-        qWarning() << "execBatch failed:" << query.lastError();
-        return false;
+    for (const QString &statement : statements) {
+        const QString trimmed = statement.trimmed();
+        if (trimmed.isEmpty()) {
+            continue;
+        }
+        if (!query.exec(trimmed)) {
+            qWarning() << "execBatch failed:" << query.lastError() << "for statement:" << trimmed;
+            return false;
+        }
     }
     return true;
 }

@@ -60,6 +60,7 @@ else()
 endif()
 
 target_include_directories(${APP_TARGET} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/views
     ${CMAKE_CURRENT_SOURCE_DIR}/network

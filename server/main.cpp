@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QTextStream>
 
@@ -9,9 +10,12 @@
 namespace {
 void loadSchema(Database &db)
 {
-    QFile schemaFile("db/schema.sql");
+    const QString baseDir = QCoreApplication::applicationDirPath();
+    const QString schemaPath = QDir(baseDir).filePath(QStringLiteral("../db/schema.sql"));
+
+    QFile schemaFile(schemaPath);
     if (!schemaFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning("Could not open db/schema.sql, continuing without.");
+        qWarning() << "Could not open schema file at" << schemaPath << ", continuing without.";
         return;
     }
 
